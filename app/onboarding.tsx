@@ -10,7 +10,6 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mic, Shield, Cpu } from 'lucide-react-native';
 import { useTheme } from '@/src/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -18,21 +17,18 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PAGES = [
   {
     id: '1',
-    icon: Mic,
     title: 'Voice to Text,\nInstantly',
     description:
       'Record or upload audio and get accurate transcriptions in seconds. Copy, share, or save your text with one tap.',
   },
   {
     id: '2',
-    icon: Shield,
     title: '100% Private\n& Offline',
     description:
       'All processing happens on your device. Your audio and transcriptions never leave your phone — no internet needed.',
   },
   {
     id: '3',
-    icon: Cpu,
     title: 'Powered by\nWhisper AI',
     description:
       'Download lightweight AI models once, then transcribe anywhere — on a plane, in a meeting, or off the grid.',

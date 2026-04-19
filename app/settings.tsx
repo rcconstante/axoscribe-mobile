@@ -225,6 +225,57 @@ export default function SettingsScreen() {
           All transcriptions run 100 % on-device.{'\n'}
           No audio data ever leaves your phone.
         </Text>
+
+        {/* ── Credits ── */}
+        <Text style={[styles.groupTitle, { color: colors.textMuted }]}>
+          Credits
+        </Text>
+        <View style={[styles.group, { backgroundColor: colors.surface }]}>
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Info size={18} color={colors.textSecondary} />
+              <Text style={[styles.rowText, { color: colors.text }]}>
+                Created by Richmond Constante
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.7}
+            onPress={() => Linking.openURL('https://rcconstante.dev')}
+          >
+            <View style={styles.rowLeft}>
+              <ExternalLink size={18} color={colors.textSecondary} />
+              <Text style={[styles.rowText, { color: colors.text }]}>
+                Portfolio
+              </Text>
+            </View>
+            <Text style={[styles.rowValue, { color: colors.textMuted }]}>
+              rcconstante.dev
+            </Text>
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.7}
+            onPress={() => Linking.openURL('https://github.com/rcconstante')}
+          >
+            <View style={styles.rowLeft}>
+              <ExternalLink size={18} color={colors.textSecondary} />
+              <Text style={[styles.rowText, { color: colors.text }]}>
+                GitHub
+              </Text>
+            </View>
+            <Text style={[styles.rowValue, { color: colors.textMuted }]}>
+              @rcconstante
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* ── Language Picker Modal ── */}

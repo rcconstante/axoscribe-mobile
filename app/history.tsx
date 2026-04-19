@@ -1,11 +1,9 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { ChevronLeft, Search, FileText } from 'lucide-react-native';
+import { FileText } from 'lucide-react-native';
 import { useTheme } from '@/src/theme';
 
 export default function HistoryScreen() {
-  const router = useRouter();
   const { colors } = useTheme();
 
   return (
@@ -13,21 +11,6 @@ export default function HistoryScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       edges={['top']}
     >
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity
-          style={styles.headerBtn}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <ChevronLeft size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>History</Text>
-        <TouchableOpacity style={styles.headerBtn} activeOpacity={0.7}>
-          <Search size={20} color={colors.text} />
-        </TouchableOpacity>
-      </View>
-
       {/* Empty state */}
       <View style={styles.emptyState}>
         <View
@@ -48,16 +31,6 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerBtn: { padding: 4, width: 36 },
-  headerTitle: { fontSize: 18, fontWeight: '700' },
   emptyState: {
     flex: 1,
     alignItems: 'center',

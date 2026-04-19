@@ -33,7 +33,7 @@ export const darkColors = {
   headerButton: '#2C2C2E',
 };
 
-export type Colors = typeof lightColors;
+export type Colors = Omit<typeof lightColors, 'statusBar'> & { statusBar: 'light' | 'dark' };
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {

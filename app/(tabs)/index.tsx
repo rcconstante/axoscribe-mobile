@@ -152,30 +152,48 @@ export default function HomeScreen() {
     return true;
   }, []);
 
-  // ── Recording ──────────────────────────────────────────────────────────────
+  // ── Recording (whisper.rn realtime) ────────────────────────────────────────
   const startRecording = useCallback(async () => {
-    const granted =
-      permission === 'granted' ? true : await requestPermission();
+    if (!whisperRef.current) return;
+
+    const granted = permission === 'granted' ? true : await requestPermission();
     if (!granted) return;
 
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-      );
-
-      recordingRef.current = recording;
       setIsRecording(true);
       setTranscript('');
       setSeconds(0);
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch (err) {
+
+      const { stop, subscribe } = await whisperRef.current.transcribeRealtime({
+        language: 'auto',
+        realtimeAudioSec: 300,
+        realtimeAudioSliceSec: 25,
+      });
+
+      stopTranscribeRef.current = stop;
+
+      subscribe(({ isCapturing, data }) => {
+        const text = (data?.result ?? '').replace(/\[BLANK_AUDIO\]/gi, '').trim();
+        if (text) setTranscript(text);
+
+        if (!isCapturing) {
+          stopTranscribeRef.current = null;
+          setIsRecording(false);
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      });
+    } catch {
+      setIsRecording(false);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
       Alert.alert(
         'Could Not Start Recording',
         'Please check that the microphone is not in use by another app.',
@@ -183,26 +201,14 @@ export default function HomeScreen() {
     }
   }, [permission, requestPermission]);
 
-  const stopRecording = useCallback(async () => {
-    if (!recordingRef.current) return;
-
+  const stopRecording = useCallback(() => {
+    stopTranscribeRef.current?.();
+    stopTranscribeRef.current = null;
     setIsRecording(false);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-
-    try {
-      await recordingRef.current.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-      // recordingRef.current.getURI() → pass to Whisper on-device transcription
-      // Transcription output updates `setTranscript()` in real implementation
-    } catch {
-      // Recording may already be stopped; safe to ignore
-    } finally {
-      recordingRef.current = null;
-    }
-
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 

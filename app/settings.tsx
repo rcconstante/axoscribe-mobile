@@ -216,7 +216,7 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <Text style={[styles.rowValue, { color: colors.textMuted }]}>
-              1.0.0
+              1.0.2
             </Text>
           </View>
         </View>

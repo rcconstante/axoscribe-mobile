@@ -2,7 +2,7 @@
   "expo": {
     "name": "AxoScribe",
     "slug": "axoscribe",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "axoscribe",
@@ -25,7 +25,7 @@
     },
     "android": {
       "package": "com.axoscribe.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "minSdkVersion": 26,

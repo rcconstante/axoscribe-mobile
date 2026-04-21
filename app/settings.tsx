@@ -9,7 +9,6 @@ import {
   Modal,
   FlatList,
   Linking,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -24,14 +23,9 @@ import {
   ExternalLink,
   Check,
   Bell,
-  Crown,
-  RefreshCcw,
-  Settings2,
 } from 'lucide-react-native';
 import { useTheme } from '@/src/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import RevenueCatUI from 'react-native-purchases-ui';
-import { useSubscription } from '@/src/subscriptionContext';
 
 const LANG_KEY = '@axoscribe_language';
 const AUTOSAVE_KEY = '@axoscribe_autosave';
@@ -62,47 +56,9 @@ const LANGUAGES = [
 export default function SettingsScreen() {
   const router = useRouter();
   const { colors, isDark, toggleDark } = useTheme();
-  const { isPro, isLoading: subLoading, restorePurchases } = useSubscription();
   const [selectedLang, setSelectedLang] = useState('en');
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [autoSave, setAutoSave] = useState(true);
-  const [restoring, setRestoring] = useState(false);
-
-  const handleUpgrade = useCallback(async () => {
-    try {
-      await RevenueCatUI.presentPaywall();
-    } catch {
-      Alert.alert('Error', 'Could not open the subscription page. Please try again.');
-    }
-  }, []);
-
-  const handleRestore = useCallback(async () => {
-    if (restoring) return;
-    setRestoring(true);
-    try {
-      const info = await restorePurchases();
-      const active = !!info.entitlements.active['AxoScribe - Transcriber Pro'];
-      Alert.alert(
-        active ? 'Purchases Restored!' : 'Nothing to Restore',
-        active
-          ? 'Your Pro subscription has been restored.'
-          : 'No active purchases found for this account.',
-      );
-    } catch {
-      Alert.alert('Restore Failed', 'Check your internet connection and try again.');
-    } finally {
-      setRestoring(false);
-    }
-  }, [restoring, restorePurchases]);
-
-  const handleManageSubscription = useCallback(async () => {
-    try {
-      await RevenueCatUI.presentCustomerCenter();
-    } catch {
-      // Customer Center requires RevenueCat Pro plan — fall back to store
-      Linking.openURL('https://play.google.com/store/account/subscriptions').catch(() => {});
-    }
-  }, []);
 
   // Load persisted preferences on mount
   useEffect(() => {
@@ -147,74 +103,6 @@ export default function SettingsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Subscription ── */}
-        <Text style={[styles.groupTitle, { color: colors.textMuted }]}>
-          Subscription
-        </Text>
-        <View style={[styles.group, { backgroundColor: colors.surface }]}>
-          {isPro ? (
-            /* ── Active Pro ── */
-            <>
-              <View style={styles.row}>
-                <View style={styles.rowLeft}>
-                  <Crown size={18} color="#F59E0B" />
-                  <View>
-                    <Text style={[styles.rowText, { color: colors.text }]}>AxoScribe Pro</Text>
-                    <Text style={{ fontSize: 12, color: '#22C55E', marginTop: 1 }}>Active</Text>
-                  </View>
-                </View>
-              </View>
-              <View style={[styles.divider, { backgroundColor: colors.border }]} />
-              <TouchableOpacity
-                style={styles.row}
-                activeOpacity={0.7}
-                onPress={handleManageSubscription}
-              >
-                <View style={styles.rowLeft}>
-                  <Settings2 size={18} color={colors.textSecondary} />
-                  <Text style={[styles.rowText, { color: colors.text }]}>Manage Subscription</Text>
-                </View>
-                <ChevronRight size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-            </>
-          ) : (
-            /* ── Upgrade prompt ── */
-            <>
-              <TouchableOpacity
-                style={styles.row}
-                activeOpacity={0.7}
-                onPress={handleUpgrade}
-                disabled={subLoading}
-              >
-                <View style={styles.rowLeft}>
-                  <Crown size={18} color="#F59E0B" />
-                  <View>
-                    <Text style={[styles.rowText, { color: colors.text }]}>Go Pro</Text>
-                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 1 }}>
-                      Remove ads · Support indie dev
-                    </Text>
-                  </View>
-                </View>
-                <ChevronRight size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-              <View style={[styles.divider, { backgroundColor: colors.border }]} />
-              <TouchableOpacity
-                style={styles.row}
-                activeOpacity={0.7}
-                onPress={handleRestore}
-                disabled={restoring}
-              >
-                <View style={styles.rowLeft}>
-                  <RefreshCcw size={18} color={colors.textSecondary} />
-                  <Text style={[styles.rowText, { color: colors.text }]}>
-                    {restoring ? 'Restoring…' : 'Restore Purchases'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-
         {/* ── Preferences ── */}
         <Text style={[styles.groupTitle, { color: colors.textMuted }]}>
           Preferences

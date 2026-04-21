@@ -5,7 +5,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SplashScreen from 'expo-splash-screen';
 import { ThemeProvider, useTheme } from '@/src/theme';
-import { SubscriptionProvider } from '@/src/subscriptionContext';
 import OnboardingScreen from './onboarding';
 
 // Keep the splash screen visible until we're ready
@@ -58,15 +57,13 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <SubscriptionProvider>
-        <ThemeProvider>
-          {hasOnboarded ? (
-            <RootStack />
-          ) : (
-            <OnboardingScreen onComplete={completeOnboarding} />
-          )}
-        </ThemeProvider>
-      </SubscriptionProvider>
+      <ThemeProvider>
+        {hasOnboarded ? (
+          <RootStack />
+        ) : (
+          <OnboardingScreen onComplete={completeOnboarding} />
+        )}
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

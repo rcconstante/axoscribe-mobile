@@ -18,12 +18,24 @@
       "bundleIdentifier": "com.axoscribe.app",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "AxoScribe uses the microphone to record audio for offline transcription. All processing happens on your device.",
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
       "package": "com.axoscribe.app",
-      "permissions": ["RECORD_AUDIO", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"],
+      "versionCode": 2,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
+      "minSdkVersion": 26,
+      "permissions": [
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#0C0C0E"
@@ -40,7 +52,6 @@
       "expo-web-browser",
       "expo-av",
       "expo-document-picker",
-      "whisper.rn",
       [
         "expo-splash-screen",
         {
@@ -52,6 +63,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3059004d-d996-41a2-abcb-a84139c9c54f"
+      }
     }
   }
 }

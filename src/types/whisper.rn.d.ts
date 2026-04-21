@@ -15,6 +15,7 @@ declare module 'whisper.rn' {
     language?: string;
     realtimeAudioSec?: number;
     realtimeAudioSliceSec?: number;
+    realtimeAudioMinSec?: number;
     maxLen?: number;
     tokenTimestamps?: boolean;
   }

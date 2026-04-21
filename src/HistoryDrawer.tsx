@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+} from 'react';
 import {
   View,
   Text,
@@ -9,10 +16,19 @@ import {
   Modal,
   Dimensions,
   Platform,
+  FlatList,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Search, FileText } from 'lucide-react-native';
+import { X, Search, FileText, Clock, ChevronRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useTheme } from './theme';
+import {
+  loadHistory,
+  TranscriptionEntry,
+  formatEntryDate,
+  formatEntryTime,
+} from './historyStorage';
 
 const DRAWER_WIDTH = Math.round(Dimensions.get('window').width * 0.82);
 
@@ -35,12 +51,23 @@ export function useHistoryDrawer() {
 export function HistoryDrawerProvider({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const [visible, setVisible] = useState(false);
+  const [items, setItems] = useState<TranscriptionEntry[]>([]);
+  const [query, setQuery] = useState('');
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
+  // Reload history whenever drawer opens
+  useEffect(() => {
+    if (visible) {
+      loadHistory().then(setItems).catch(() => {});
+    }
+  }, [visible]);
+
   const openHistory = useCallback(() => {
+    setQuery('');
     setVisible(true);
     Animated.parallel([
       Animated.spring(slideAnim, {
@@ -71,6 +98,26 @@ export function HistoryDrawerProvider({ children }: { children: React.ReactNode 
       }),
     ]).start(() => setVisible(false));
   }, [slideAnim, backdropAnim]);
+
+  const handleItemPress = useCallback(
+    (item: TranscriptionEntry) => {
+      closeHistory();
+      // Small delay so drawer finishes closing before navigating
+      setTimeout(() => {
+        router.push({ pathname: '/history', params: { id: item.id } });
+      }, 220);
+    },
+    [closeHistory, router],
+  );
+
+  const filtered =
+    query.trim().length > 0
+      ? items.filter(
+          (i) =>
+            i.title.toLowerCase().includes(query.toLowerCase()) ||
+            i.text.toLowerCase().includes(query.toLowerCase()),
+        )
+      : items;
 
   const paddingTop = insets.top + (Platform.OS === 'android' ? 12 : 8);
   const paddingBottom = Math.max(insets.bottom, 16);
@@ -116,28 +163,74 @@ export function HistoryDrawerProvider({ children }: { children: React.ReactNode 
             </TouchableOpacity>
           </View>
 
-          {/* Search bar (static for now) */}
+          {/* Search bar */}
           <View style={[styles.searchBar, { backgroundColor: colors.surfaceVariant }]}>
             <Search size={15} color={colors.textMuted} />
-            <Text style={[styles.searchPlaceholder, { color: colors.textMuted }]}>
-              Search transcriptions…
-            </Text>
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Search transcriptions…"
+              placeholderTextColor={colors.textMuted}
+              value={query}
+              onChangeText={setQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {query.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setQuery('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={13} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Empty state */}
-          <View style={styles.emptyState}>
-            <View
-              style={[styles.emptyIconCircle, { backgroundColor: colors.surfaceVariant }]}
-            >
-              <FileText size={28} color={colors.textMuted} />
+          {/* List or empty state */}
+          {filtered.length === 0 ? (
+            <View style={styles.emptyState}>
+              <View style={[styles.emptyIconCircle, { backgroundColor: colors.surfaceVariant }]}>
+                <FileText size={28} color={colors.textMuted} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                {query.length > 0 ? 'No results' : 'No transcriptions yet'}
+              </Text>
+              <Text style={[styles.emptySubText, { color: colors.textMuted }]}>
+                {query.length > 0
+                  ? 'Try a different search term'
+                  : 'Your saved recordings will appear here'}
+              </Text>
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              No transcriptions yet
-            </Text>
-            <Text style={[styles.emptySubText, { color: colors.textMuted }]}>
-              Your saved recordings will appear here
-            </Text>
-          </View>
+          ) : (
+            <FlatList
+              data={filtered}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.item, { borderBottomColor: colors.border }]}
+                  onPress={() => handleItemPress(item)}
+                  activeOpacity={0.6}
+                >
+                  <View style={styles.itemBody}>
+                    <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={2}>
+                      {item.title}
+                    </Text>
+                    <View style={styles.itemMeta}>
+                      <Clock size={11} color={colors.textMuted} />
+                      <Text style={[styles.itemMetaText, { color: colors.textMuted }]}>
+                        {formatEntryDate(item.date)} · {formatEntryTime(item.date)}
+                      </Text>
+                    </View>
+                    <Text style={[styles.itemPreview, { color: colors.textSecondary }]} numberOfLines={2}>
+                      {item.text}
+                    </Text>
+                  </View>
+                  <ChevronRight size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            />
+          )}
         </Animated.View>
       </Modal>
     </HistoryDrawerContext.Provider>
@@ -185,11 +278,15 @@ const styles = StyleSheet.create({
     gap: 10,
     marginHorizontal: 16,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  searchPlaceholder: { fontSize: 14 },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    padding: 0,
+  },
   emptyState: {
     flex: 1,
     alignItems: 'center',
@@ -200,11 +297,25 @@ const styles = StyleSheet.create({
   emptyIconCircle: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '600' },
-  emptySubText: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
+  emptyTitle: { fontSize: 17, fontWeight: '600', textAlign: 'center' },
+  emptySubText: { fontSize: 13, textAlign: 'center', lineHeight: 18 },
+  listContent: { paddingBottom: 16 },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  itemBody: { flex: 1, gap: 4 },
+  itemTitle: { fontSize: 15, fontWeight: '600', lineHeight: 20 },
+  itemMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  itemMetaText: { fontSize: 11, lineHeight: 14 },
+  itemPreview: { fontSize: 13, lineHeight: 18 },
 });

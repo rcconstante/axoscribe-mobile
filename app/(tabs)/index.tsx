@@ -10,6 +10,7 @@ import {
   Share,
   AppState,
   ActivityIndicator,
+  NativeModules,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { History, Settings, Mic, Square, Copy, Trash2, Share2, HardDrive } from 'lucide-react-native';
@@ -20,8 +21,29 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
-import { initWhisper } from 'whisper.rn';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WhisperContext } from 'whisper.rn';
+import { saveEntry, makeTitle, TranscriptionEntry } from '@/src/historyStorage';
+
+// Use NativeModules.RNWhisper as the ground truth for whether the native
+// Whisper module is compiled in. This is true in any EAS/production build
+// and false in Expo Go (where the native module is absent).
+// We only attempt the require when the native module is actually present,
+// preventing silent failures that would incorrectly set WHISPER_AVAILABLE=false.
+type InitWhisperFn = typeof import('whisper.rn')['initWhisper'];
+const WHISPER_AVAILABLE = !!NativeModules.RNWhisper;
+let initWhisper: InitWhisperFn | null = null;
+if (WHISPER_AVAILABLE) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    initWhisper = require('whisper.rn').initWhisper as InitWhisperFn;
+  } catch {
+    initWhisper = null;
+  }
+}
+
+const LANG_KEY = '@axoscribe_language';
+const AUTOSAVE_KEY = '@axoscribe_autosave';
 
 // ── Model helpers ────────────────────────────────────────────────────────────────────
 const MODEL_DIR = FileSystem.documentDirectory + 'models/';
@@ -70,12 +92,16 @@ export default function HomeScreen() {
   const [seconds, setSeconds] = useState(0);
   const [hasModel, setHasModel] = useState<boolean | null>(null);
   const [modelLoading, setModelLoading] = useState(false);
+  const [selectedLang, setSelectedLang] = useState('auto');
 
   // Refs
   const whisperRef = useRef<WhisperContext | null>(null);
   const loadedModelPathRef = useRef<string | null>(null);
   const stopTranscribeRef = useRef<(() => void) | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const transcriptRef = useRef('');
+  const secondsRef = useRef(0);
+  const autoSaveRef = useRef(true);
 
   // Compute bottom clearance to sit above the tab bar
   const tabClearance =
@@ -97,6 +123,10 @@ export default function HomeScreen() {
           return;
         }
         setHasModel(true);
+
+        // Native module not compiled in (Expo Go) — model exists on disk
+        // but Whisper cannot run. Skip init; UI will show the right message.
+        if (!initWhisper) return;
 
         // Already have this model loaded — skip expensive re-init
         if (loadedModelPathRef.current === path) return;
@@ -138,6 +168,18 @@ export default function HomeScreen() {
     });
   }, []);
 
+  // ── Load language preference ────────────────────────────────────────────────
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem(LANG_KEY).then((val) => {
+        setSelectedLang(val ?? 'auto');
+      }).catch(() => {});
+      AsyncStorage.getItem(AUTOSAVE_KEY).then((val) => {
+        autoSaveRef.current = val !== 'false';
+      }).catch(() => {});
+    }, []),
+  );
+
   const requestPermission = useCallback(async (): Promise<boolean> => {
     const { status } = await Audio.requestPermissionsAsync();
     setPermission(status as PermissionStatus);
@@ -162,21 +204,32 @@ export default function HomeScreen() {
     try {
       setIsRecording(true);
       setTranscript('');
+      transcriptRef.current = '';
       setSeconds(0);
-      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+      secondsRef.current = 0;
+      timerRef.current = setInterval(() => {
+        setSeconds((s) => {
+          secondsRef.current = s + 1;
+          return s + 1;
+        });
+      }, 1000);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       const { stop, subscribe } = await whisperRef.current.transcribeRealtime({
-        language: 'auto',
+        language: selectedLang === 'auto' ? undefined : selectedLang,
         realtimeAudioSec: 300,
-        realtimeAudioSliceSec: 25,
+        realtimeAudioSliceSec: 6,
+        realtimeAudioMinSec: 1,
       });
 
       stopTranscribeRef.current = stop;
 
       subscribe(({ isCapturing, data }) => {
         const text = (data?.result ?? '').replace(/\[BLANK_AUDIO\]/gi, '').trim();
-        if (text) setTranscript(text);
+        if (text) {
+          setTranscript(text);
+          transcriptRef.current = text;
+        }
 
         if (!isCapturing) {
           stopTranscribeRef.current = null;
@@ -186,6 +239,20 @@ export default function HomeScreen() {
             timerRef.current = null;
           }
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+          // Auto-save transcription to history
+          const finalText = transcriptRef.current;
+          if (finalText && autoSaveRef.current) {
+            const entry: TranscriptionEntry = {
+              id: Date.now().toString(),
+              title: makeTitle(finalText),
+              text: finalText,
+              date: new Date().toISOString(),
+              wordCount: wordCount(finalText),
+              durationSeconds: secondsRef.current,
+            };
+            saveEntry(entry).catch(() => {});
+          }
         }
       });
     } catch {
@@ -221,6 +288,14 @@ export default function HomeScreen() {
           { text: 'Not Now', style: 'cancel' },
           { text: 'Go to Models', onPress: () => router.push('/(tabs)/models') },
         ],
+      );
+      return;
+    }
+    if (!WHISPER_AVAILABLE) {
+      Alert.alert(
+        'Production Build Required',
+        'Whisper AI needs a production or dev build to run. It cannot work in Expo Go. Build the app with EAS to use transcription.',
+        [{ text: 'OK' }],
       );
       return;
     }
@@ -353,6 +428,8 @@ export default function HomeScreen() {
                 <Square size={28} color="#FFFFFF" fill="#FFFFFF" />
               ) : hasModel === false ? (
                 <HardDrive size={30} color={colors.textMuted} />
+              ) : !WHISPER_AVAILABLE ? (
+                <HardDrive size={30} color={colors.textMuted} />
               ) : (
                 <Mic size={32} color={colors.primaryForeground} />
               )}
@@ -381,6 +458,10 @@ export default function HomeScreen() {
               Download a model to start
             </Text>
           </TouchableOpacity>
+        ) : !WHISPER_AVAILABLE ? (
+          <Text style={[styles.statusLabel, { color: colors.textMuted }]}>
+            Requires a production build to run
+          </Text>
         ) : (
           <Text style={[styles.statusLabel, { color: colors.textMuted }]}>
             {transcript ? 'Tap mic to record again' : 'Tap to start transcribing'}

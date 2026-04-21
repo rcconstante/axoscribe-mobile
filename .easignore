@@ -1,0 +1,10 @@
+# Large asset directories not needed by EAS cloud builder
+android/app/build/
+android/.gradle/
+android/build/
+ios/build/
+node_modules/.cache/
+.expo/web/cache/
+axoscribe-web/node_modules/
+axoscribe-web/dist/
+android/local.properties
